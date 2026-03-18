@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://wry-manatee-359.convex.site/api/:path*"
+      "destination": "https://quixotic-turtle-148.convex.site/api/:path*"
     }
   ]
 }
