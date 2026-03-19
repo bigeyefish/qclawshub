@@ -1,6 +1,6 @@
 {
-  "apiBase": "https://clawhub.ai",
-  "authBase": "https://clawhub.ai",
+  "apiBase": "https://qclawshub.vercel.app",
+  "authBase": "https://qclawshub.vercel.app",
   "minCliVersion": "0.1.0",
-  "registry": "https://clawhub.ai"
+  "registry": "https://qclawshub.vercel.app"
 }
