@@ -1,6 +1,6 @@
 {
-  "apiBase": "https://qclawshub.vercel.app",
-  "authBase": "https://qclawshub.vercel.app",
+  "apiBase": "https://www.qclaws.store",
+  "authBase": "https://www.qclaws.store",
   "minCliVersion": "0.1.0",
-  "registry": "https://qclawshub.vercel.app"
+  "registry": "https://www.qclaws.store"
 }
