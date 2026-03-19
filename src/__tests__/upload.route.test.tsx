@@ -1,13 +1,21 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { strToU8, zipSync } from 'fflate'
 import { vi } from 'vitest'
+import { api } from '../../convex/_generated/api'
 
 import { Upload } from '../routes/upload'
 
+const navigateMock = vi.fn()
+const siteModeMock = vi.fn()
+const useActionHookMock = vi.fn()
+const hashFileMock = vi.fn()
+const uploadFileMock = vi.fn()
+let searchMock: { updateSlug?: string; mode?: 'skills' | 'souls' } = {}
+
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (config: { component: unknown }) => config,
-  useNavigate: () => vi.fn(),
-  useSearch: () => ({ updateSlug: undefined }),
+  useNavigate: () => navigateMock,
+  useSearch: () => searchMock,
 }))
 
 const generateUploadUrl = vi.fn()
@@ -16,30 +24,62 @@ const generateChangelogPreview = vi.fn()
 const fetchMock = vi.fn()
 const useQueryMock = vi.fn()
 const useAuthStatusMock = vi.fn()
-let useActionCallCount = 0
 
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => useQueryMock(...args),
   useMutation: () => generateUploadUrl,
-  useAction: () => {
-    useActionCallCount += 1
-    return useActionCallCount % 2 === 1 ? publishVersion : generateChangelogPreview
-  },
+  useAction: (...args: unknown[]) => useActionHookMock(...args),
 }))
 
 vi.mock('../lib/useAuthStatus', () => ({
   useAuthStatus: () => useAuthStatusMock(),
 }))
 
+vi.mock('../lib/site', () => ({
+  getSiteMode: () => siteModeMock(),
+}))
+
+vi.mock('../routes/upload/-utils', async () => {
+  const actual = await vi.importActual<typeof import('../routes/upload/-utils')>(
+    '../routes/upload/-utils',
+  )
+  return {
+    ...actual,
+    hashFile: (...args: unknown[]) => hashFileMock(...args),
+    uploadFile: (...args: unknown[]) => uploadFileMock(...args),
+  }
+})
+
 describe('Upload route', () => {
   beforeEach(() => {
     generateUploadUrl.mockReset()
     publishVersion.mockReset()
     generateChangelogPreview.mockReset()
+    navigateMock.mockReset()
+    siteModeMock.mockReset()
+    useActionHookMock.mockReset()
+    hashFileMock.mockReset()
+    uploadFileMock.mockReset()
     fetchMock.mockReset()
     useQueryMock.mockReset()
     useAuthStatusMock.mockReset()
-    useActionCallCount = 0
+    searchMock = {}
+    siteModeMock.mockReturnValue('skills')
+    generateChangelogPreview.mockResolvedValue({ changelog: '- Updated skill.' })
+    hashFileMock.mockResolvedValue('hash')
+    uploadFileMock.mockResolvedValue('storage-id')
+    useActionHookMock.mockImplementation((ref: unknown) => {
+      if (ref === api.skills.publishVersion || ref === api.souls.publishVersion) {
+        return publishVersion
+      }
+      if (
+        ref === api.skills.generateChangelogPreview ||
+        ref === api.souls.generateChangelogPreview
+      ) {
+        return generateChangelogPreview
+      }
+      return vi.fn()
+    })
     useAuthStatusMock.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
@@ -58,6 +98,50 @@ describe('Upload route', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it('falls back to soul host mode when search mode is omitted', () => {
+    siteModeMock.mockReturnValue('souls')
+
+    render(<Upload />)
+
+    expect(screen.getByText(/Publish a soul/i)).toBeTruthy()
+    expect(screen.getByText(/Souls currently accept only SOUL\.md\./i)).toBeTruthy()
+    expect(screen.queryByText(/License/i)).toBeNull()
+    expect(useActionHookMock).toHaveBeenCalledWith(api.souls.publishVersion)
+    expect(useActionHookMock).toHaveBeenCalledWith(api.souls.generateChangelogPreview)
+  })
+
+  it('uses explicit search mode over host mode for soul uploads', () => {
+    searchMock = { mode: 'souls' }
+
+    render(<Upload />)
+
+    expect(screen.getByRole('tab', { name: 'Soul' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByPlaceholderText('soul-name')).toBeTruthy()
+    expect(screen.getByText(/SOUL\.md is required\./i)).toBeTruthy()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(useActionHookMock).toHaveBeenCalledWith(api.souls.publishVersion)
+    expect(useActionHookMock).toHaveBeenCalledWith(api.souls.generateChangelogPreview)
+  })
+
+  it('updates the query mode when switching upload type', () => {
+    render(<Upload />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Soul' }))
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/upload',
+      search: expect.any(Function),
+      replace: true,
+    })
+    const searchUpdater = navigateMock.mock.calls[0]?.[0]?.search as
+      | ((prev: Record<string, unknown>) => Record<string, unknown>)
+      | undefined
+    expect(searchUpdater?.({ updateSlug: 'demo' })).toEqual({
+      updateSlug: undefined,
+      mode: 'souls',
+    })
   })
 
   it('shows validation issues before submit', async () => {
@@ -140,9 +224,7 @@ describe('Upload route', () => {
     expect(await screen.findByText(/All checks passed/i, {}, { timeout: 3000 })).toBeTruthy()
   })
 
-  it('unwraps folder uploads so SKILL.md can be at the top-level', async () => {
-    generateUploadUrl.mockResolvedValue('https://upload.local')
-    publishVersion.mockResolvedValue(undefined)
+  it('unwraps folder uploads so SKILL.md can be shown at the top-level', async () => {
     render(<Upload />)
     fireEvent.change(screen.getByPlaceholderText('skill-name'), {
       target: { value: 'ynab' },
@@ -170,19 +252,7 @@ describe('Upload route', () => {
 
     expect(await screen.findByText('SKILL.md')).toBeTruthy()
     expect(await screen.findByText(/All checks passed/i)).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: /publish/i }))
-    await waitFor(() => {
-      expect(
-        publishVersion.mock.calls.some((call) =>
-          Array.isArray((call[0] as { files?: unknown }).files),
-        ),
-      ).toBe(true)
-    })
-    const args = publishVersion.mock.calls
-      .map((call) => call[0] as { files?: Array<{ path: string }> })
-      .find((call) => Array.isArray(call.files))
-    expect(args?.files?.[0]?.path).toBe('SKILL.md')
+    expect(screen.queryByText('ynab/SKILL.md')).toBeNull()
   })
 
   it('blocks non-text folder uploads (png)', async () => {
@@ -244,15 +314,15 @@ describe('Upload route', () => {
     expect(await screen.findByText(/All checks passed/i)).toBeTruthy()
   })
 
-  it('surfaces publish errors and stays on page', async () => {
-    publishVersion.mockRejectedValueOnce(new Error('Changelog is required'))
-    generateUploadUrl.mockResolvedValue('https://upload.local')
+  it('blocks extra files in soul mode before submit', async () => {
+    searchMock = { mode: 'souls' }
+
     render(<Upload />)
-    fireEvent.change(screen.getByPlaceholderText('skill-name'), {
-      target: { value: 'cool-skill' },
+    fireEvent.change(screen.getByPlaceholderText('soul-name'), {
+      target: { value: 'lore' },
     })
-    fireEvent.change(screen.getByPlaceholderText('My skill'), {
-      target: { value: 'Cool Skill' },
+    fireEvent.change(screen.getByPlaceholderText('My soul'), {
+      target: { value: 'Lore' },
     })
     fireEvent.change(screen.getByPlaceholderText('1.0.0'), {
       target: { value: '1.2.3' },
@@ -260,21 +330,15 @@ describe('Upload route', () => {
     fireEvent.change(screen.getByPlaceholderText('latest, stable'), {
       target: { value: 'latest' },
     })
-    fireEvent.change(screen.getByPlaceholderText('Describe what changed in this skill...'), {
-      target: { value: 'Initial drop.' },
-    })
-    const file = new File(['hello'], 'SKILL.md', { type: 'text/markdown' })
+    const file = new File(['hello'], 'SOUL.md', { type: 'text/markdown' })
+    const notes = new File(['notes'], 'notes.txt', { type: 'text/plain' })
     const input = screen.getByTestId('upload-input') as HTMLInputElement
-    fireEvent.change(input, { target: { files: [file] } })
-    fireEvent.click(
-      screen.getByRole('checkbox', {
-        name: /i have the rights to this skill and agree to publish it under mit-0/i,
-      }),
-    )
-    const publishButton = screen.getByRole('button', { name: /publish/i }) as HTMLButtonElement
-    await screen.findByText(/All checks passed/i)
-    fireEvent.click(publishButton)
-    expect(await screen.findByText(/Changelog is required/i)).toBeTruthy()
+    fireEvent.change(input, { target: { files: [file, notes] } })
+
+    expect(
+      await screen.findByText(/Soul bundles can only include SOUL\.md\. Remove: notes\.txt/i),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: /publish soul/i }).getAttribute('disabled')).not.toBeNull()
   })
 
   it('blocks publish in preflight when slug availability reports a collision', async () => {
@@ -316,8 +380,12 @@ describe('Upload route', () => {
     const input = screen.getByTestId('upload-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
-    expect(await screen.findByText(/Slug is already taken\. Choose a different slug\./i)).toBeTruthy()
+    expect(
+      await screen.findByText(/Slug is already taken\. Choose a different slug\./i),
+    ).toBeTruthy()
     expect(screen.getByRole('link', { name: '/alice/taken-skill' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /publish skill/i }).getAttribute('disabled')).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: /publish skill/i }).getAttribute('disabled'),
+    ).not.toBeNull()
   })
 })

@@ -380,10 +380,54 @@ code {
   border: 1px solid var(--line);
 }
 
+.skills-home-hero-rail {
+  display: grid;
+  gap: 18px;
+}
+
 .hero-search-card {
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease;
+}
+
+.skills-home-soul-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.skills-home-soul-kicker {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 107, 74, 0.12);
+  color: var(--accent-deep);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.skills-home-soul-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  letter-spacing: -0.02em;
+}
+
+.skills-home-soul-copy {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.skills-home-soul-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .hero.search-mode .hero-search-card {
@@ -450,6 +494,57 @@ code {
   max-width: 640px;
   color: var(--ink-soft);
   line-height: 1.6;
+}
+
+.upload-mode-switch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: calc(var(--radius-pill) + 6px);
+  border: 1px solid rgba(255, 118, 84, 0.2);
+  background: rgba(255, 249, 245, 0.76);
+  margin-bottom: 14px;
+}
+
+.upload-mode-tab {
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 700;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.upload-mode-tab:hover {
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.upload-mode-tab.is-active {
+  border-color: rgba(255, 107, 74, 0.28);
+  background: rgba(255, 107, 74, 0.14);
+  color: var(--accent-deep);
+}
+
+[data-theme="dark"] .upload-mode-switch {
+  border-color: rgba(255, 131, 95, 0.24);
+  background: rgba(18, 33, 44, 0.78);
+}
+
+[data-theme="dark"] .upload-mode-tab {
+  color: rgba(206, 227, 238, 0.76);
+}
+
+[data-theme="dark"] .upload-mode-tab.is-active {
+  border-color: rgba(255, 131, 95, 0.32);
+  background: rgba(232, 106, 71, 0.2);
+  color: #ffd6c9;
 }
 
 .upload-page .upload-grid {
@@ -1836,6 +1931,11 @@ code {
     grid-template-columns: 1fr;
     gap: 24px;
   }
+
+  .skills-home-soul-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .skill-detail-stack {
@@ -3199,6 +3299,16 @@ code {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+
+  .upload-mode-switch {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .upload-mode-tab {
+    flex: 1 1 0;
+    justify-content: center;
   }
 }
 

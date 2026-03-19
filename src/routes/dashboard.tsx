@@ -36,7 +36,11 @@ function Dashboard() {
         <h1 className="section-title" style={{ margin: 0 }}>
           My Skills
         </h1>
-        <Link to="/upload" search={{ updateSlug: undefined }} className="btn btn-primary">
+        <Link
+          to="/upload"
+          search={{ mode: 'skills', updateSlug: undefined }}
+          className="btn btn-primary"
+        >
           <Plus className="h-4 w-4" aria-hidden="true" />
           Upload New Skill
         </Link>
@@ -47,7 +51,11 @@ function Dashboard() {
           <Package className="dashboard-empty-icon" aria-hidden="true" />
           <h2>No skills yet</h2>
           <p>Upload your first skill to share it with the community.</p>
-          <Link to="/upload" search={{ updateSlug: undefined }} className="btn btn-primary">
+          <Link
+            to="/upload"
+            search={{ mode: 'skills', updateSlug: undefined }}
+            className="btn btn-primary"
+          >
             <Upload className="h-4 w-4" aria-hidden="true" />
             Upload a Skill
           </Link>
@@ -93,7 +101,11 @@ function SkillCard({ skill, ownerHandle }: { skill: DashboardSkill; ownerHandle:
         </div>
       </div>
       <div className="dashboard-skill-actions">
-        <Link to="/upload" search={{ updateSlug: skill.slug }} className="btn btn-sm">
+        <Link
+          to="/upload"
+          search={{ mode: 'skills', updateSlug: skill.slug }}
+          className="btn btn-sm"
+        >
           <Upload className="h-3 w-3" aria-hidden="true" />
           New Version
         </Link>

@@ -6,7 +6,7 @@ import { getUserFacingConvexError } from '../lib/convexError'
 import { setAuthError, useAuthError } from '../lib/useAuthError'
 import { gravatarUrl } from '../lib/gravatar'
 import { isModerator } from '../lib/roles'
-import { getClawHubSiteUrl, getSiteMode, getSiteName } from '../lib/site'
+import { getClawHubSiteUrl, getSiteMode, getSiteName, type SiteMode } from '../lib/site'
 import { applyTheme, useThemeMode } from '../lib/theme'
 import { startThemeTransition } from '../lib/theme-transition'
 import { useAuthStatus } from '../lib/useAuthStatus'
@@ -28,6 +28,11 @@ export default function Header() {
   const siteName = useMemo(() => getSiteName(siteMode), [siteMode])
   const isSoulMode = siteMode === 'souls'
   const clawHubUrl = getClawHubSiteUrl()
+  const uploadMode = getUploadModeForCurrentLocation(siteMode)
+  const uploadSearch = {
+    mode: uploadMode,
+    updateSlug: undefined,
+  } as const
 
   const avatar = me?.image ?? (me?.email ? gravatarUrl(me.email) : undefined)
   const handle = me?.handle ?? me?.displayName ?? 'user'
@@ -64,36 +69,33 @@ export default function Header() {
         </Link>
         <nav className="nav-links">
           {isSoulMode ? <a href={clawHubUrl}>ClawHub</a> : null}
-          {isSoulMode ? (
-            <Link
-              to="/souls"
-              search={{
-                q: undefined,
-                sort: undefined,
-                dir: undefined,
-                view: undefined,
-                focus: undefined,
-              }}
-            >
-              Souls
-            </Link>
-          ) : (
-            <Link
-              to="/skills"
-              search={{
-                q: undefined,
-                sort: undefined,
-                dir: undefined,
-                highlighted: undefined,
-                nonSuspicious: undefined,
-                view: undefined,
-                focus: undefined,
-              }}
-            >
-              Skills
-            </Link>
-          )}
-          <Link to="/upload" search={{ updateSlug: undefined }}>
+          <Link
+            to="/skills"
+            search={{
+              q: undefined,
+              sort: undefined,
+              dir: undefined,
+              highlighted: undefined,
+              nonSuspicious: undefined,
+              view: undefined,
+              focus: undefined,
+            }}
+          >
+            Skills
+          </Link>
+          <Link
+            to="/souls"
+            search={{
+              q: undefined,
+              sort: undefined,
+              dir: undefined,
+              view: undefined,
+              focus: undefined,
+            }}
+          >
+            Souls
+          </Link>
+          <Link to="/upload" search={uploadSearch}>
             Upload
           </Link>
           {isSoulMode ? null : <Link to="/import">Import</Link>}
@@ -143,38 +145,37 @@ export default function Header() {
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem asChild>
-                  {isSoulMode ? (
-                    <Link
-                      to="/souls"
-                      search={{
-                        q: undefined,
-                        sort: undefined,
-                        dir: undefined,
-                        view: undefined,
-                        focus: undefined,
-                      }}
-                    >
-                      Souls
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/skills"
-                      search={{
-                        q: undefined,
-                        sort: undefined,
-                        dir: undefined,
-                        highlighted: undefined,
-                        nonSuspicious: undefined,
-                        view: undefined,
-                        focus: undefined,
-                      }}
-                    >
-                      Skills
-                    </Link>
-                  )}
+                  <Link
+                    to="/skills"
+                    search={{
+                      q: undefined,
+                      sort: undefined,
+                      dir: undefined,
+                      highlighted: undefined,
+                      nonSuspicious: undefined,
+                      view: undefined,
+                      focus: undefined,
+                    }}
+                  >
+                    Skills
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/upload" search={{ updateSlug: undefined }}>
+                  <Link
+                    to="/souls"
+                    search={{
+                      q: undefined,
+                      sort: undefined,
+                      dir: undefined,
+                      view: undefined,
+                      focus: undefined,
+                    }}
+                  >
+                    Souls
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/upload" search={uploadSearch}>
                     Upload
                   </Link>
                 </DropdownMenuItem>
@@ -334,4 +335,29 @@ export default function Header() {
 function getCurrentRelativeUrl() {
   if (typeof window === 'undefined') return '/'
   return `${window.location.pathname}${window.location.search}${window.location.hash}`
+}
+
+function getUploadModeForCurrentLocation(siteMode: SiteMode): SiteMode {
+  if (typeof window === 'undefined') return siteMode
+
+  const pathname = window.location.pathname.toLowerCase()
+  const search = new URLSearchParams(window.location.search)
+  const explicitMode = search.get('mode')
+  if (pathname === '/upload' && (explicitMode === 'skills' || explicitMode === 'souls')) {
+    return explicitMode
+  }
+
+  if (pathname === '/' || isNeutralUploadContext(pathname)) return siteMode
+  if (pathname === '/souls' || pathname.startsWith('/souls/')) return 'souls'
+  return 'skills'
+}
+
+function isNeutralUploadContext(pathname: string) {
+  return (
+    pathname === '/stars' ||
+    pathname === '/settings' ||
+    pathname === '/dashboard' ||
+    pathname === '/management' ||
+    pathname.startsWith('/u/')
+  )
 }

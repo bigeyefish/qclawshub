@@ -22,21 +22,27 @@ import {
 } from './upload/-utils'
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+type UploadMode = 'skills' | 'souls'
 
 export const Route = createFileRoute('/upload')({
   validateSearch: (search) => ({
     updateSlug: typeof search.updateSlug === 'string' ? search.updateSlug : undefined,
+    mode: parseUploadMode(search.mode),
   }),
   component: Upload,
 })
 
 export function Upload() {
   const { isAuthenticated, me } = useAuthStatus()
-  const { updateSlug } = useSearch({ from: '/upload' })
+  const { updateSlug, mode } = useSearch({ from: '/upload' })
   const siteMode = getSiteMode()
-  const isSoulMode = siteMode === 'souls'
+  const uploadMode = mode ?? siteMode
+  const isSoulMode = uploadMode === 'souls'
   const requiredFileLabel = isSoulMode ? 'SOUL.md' : 'SKILL.md'
   const contentLabel = isSoulMode ? 'soul' : 'skill'
+  const uploadSubtitle = isSoulMode
+    ? 'Upload a SOUL.md bundle. Souls currently accept only SOUL.md.'
+    : 'Drop a folder with SKILL.md and text files. We will handle the rest.'
 
   const generateUploadUrl = useMutation(api.uploads.generateUploadUrl)
   const publishVersion = useAction(
@@ -120,6 +126,13 @@ export function Upload() {
         const lower = path.trim().toLowerCase()
         return isSoulMode ? lower === 'soul.md' : lower === 'skill.md' || lower === 'skills.md'
       }),
+    [isSoulMode, normalizedPaths],
+  )
+  const unexpectedSoulFiles = useMemo(
+    () =>
+      isSoulMode
+        ? normalizedPaths.filter((path) => path.trim().toLowerCase() !== 'soul.md')
+        : [],
     [isSoulMode, normalizedPaths],
   )
   const sizeLabel = totalBytes ? formatBytes(totalBytes) : '0 B'
@@ -257,6 +270,11 @@ export function Upload() {
     if (!hasRequiredFile) {
       issues.push(`${requiredFileLabel} is required.`)
     }
+    if (unexpectedSoulFiles.length > 0) {
+      issues.push(
+        `Soul bundles can only include SOUL.md. Remove: ${unexpectedSoulFiles.slice(0, 3).join(', ')}`,
+      )
+    }
     const invalidFiles = files.filter((file) => !isTextFile(file))
     if (invalidFiles.length > 0) {
       issues.push(
@@ -287,19 +305,12 @@ export function Upload() {
     isSoulMode,
     totalBytes,
     requiredFileLabel,
+    unexpectedSoulFiles,
     slugCollision,
   ])
 
   // webkitdirectory/directory attributes are set via the ref callback (setFileInputRef)
   // to ensure they persist across hydration and re-renders (#58)
-
-  if (!isAuthenticated) {
-    return (
-      <main className="section">
-        <div className="card">Sign in to upload a {contentLabel}.</div>
-      </main>
-    )
-  }
 
   async function applyExpandedFiles(selected: File[]) {
     const report = await expandFilesWithReport(selected)
@@ -393,14 +404,47 @@ export function Upload() {
     <main className="section upload-page">
       <header className="upload-page-header">
         <div>
+          <div className="upload-mode-switch" role="tablist" aria-label="Upload mode">
+            <button
+              className={isSoulMode ? 'upload-mode-tab' : 'upload-mode-tab is-active'}
+              type="button"
+              role="tab"
+              aria-selected={!isSoulMode}
+              onClick={() => {
+                void navigate({
+                  to: '/upload',
+                  search: (prev) => ({ ...prev, mode: 'skills', updateSlug: undefined }),
+                  replace: true,
+                })
+              }}
+            >
+              Skill
+            </button>
+            <button
+              className={isSoulMode ? 'upload-mode-tab is-active' : 'upload-mode-tab'}
+              type="button"
+              role="tab"
+              aria-selected={isSoulMode}
+              onClick={() => {
+                void navigate({
+                  to: '/upload',
+                  search: (prev) => ({ ...prev, mode: 'souls', updateSlug: undefined }),
+                  replace: true,
+                })
+              }}
+            >
+              Soul
+            </button>
+          </div>
           <h1 className="upload-page-title">Publish a {contentLabel}</h1>
-          <p className="upload-page-subtitle">
-            Drop a folder with {requiredFileLabel} and text files. We will handle the rest.
-          </p>
+          <p className="upload-page-subtitle">{uploadSubtitle}</p>
         </div>
       </header>
 
-      <form onSubmit={handleSubmit} className="upload-grid">
+      {!isAuthenticated ? (
+        <div className="card">Sign in to upload a {contentLabel}.</div>
+      ) : (
+        <form onSubmit={handleSubmit} className="upload-grid">
         <div className="card upload-panel">
           <label className="form-label" htmlFor="slug">
             Slug
@@ -487,7 +531,9 @@ export function Upload() {
                 </span>
               </div>
               <span className="upload-dropzone-hint">
-                We keep folder paths and flatten the outer wrapper automatically.
+                {isSoulMode
+                  ? 'A soul bundle should contain SOUL.md only. We keep folder paths and flatten the outer wrapper automatically.'
+                  : 'We keep folder paths and flatten the outer wrapper automatically.'}
               </span>
               <button
                 className="btn upload-picker-btn"
@@ -526,7 +572,7 @@ export function Upload() {
           )}
           {slugCollision?.url ? (
             <div className="stat">
-              Existing skill:{' '}
+              Existing {contentLabel}:{' '}
               <a href={slugCollision.url} className="upload-link">
                 {slugCollision.url}
               </a>
@@ -604,7 +650,12 @@ export function Upload() {
             Publish {contentLabel}
           </button>
         </div>
-      </form>
+        </form>
+      )}
     </main>
   )
+}
+
+function parseUploadMode(value: unknown): UploadMode | undefined {
+  return value === 'skills' || value === 'souls' ? value : undefined
 }

@@ -17,7 +17,7 @@ export const Route = createFileRoute('/')({
   component: Home,
 })
 
-function Home() {
+export function Home() {
   const mode = getSiteMode()
   return mode === 'souls' ? <OnlyCrabsHome /> : <SkillsHome />
 }
@@ -63,7 +63,11 @@ function SkillsHome() {
               vectors. No gatekeeping, just signal.
             </p>
             <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-              <Link to="/upload" search={{ updateSlug: undefined }} className="btn btn-primary">
+              <Link
+                to="/upload"
+                search={{ mode: 'skills', updateSlug: undefined }}
+                className="btn btn-primary"
+              >
                 Publish a skill
               </Link>
               <Link
@@ -83,10 +87,41 @@ function SkillsHome() {
               </Link>
             </div>
           </div>
-          <div className="hero-card hero-search-card fade-up" data-delay="2">
-            <div className="hero-install" style={{ marginTop: 18 }}>
-              <div className="stat">Search skills. Versioned, rollback-ready.</div>
-              <InstallSwitcher exampleSlug="sonoscli" />
+          <div className="skills-home-hero-rail fade-up" data-delay="2">
+            <div className="hero-card hero-search-card">
+              <div className="hero-install" style={{ marginTop: 18 }}>
+                <div className="stat">Search skills. Versioned, rollback-ready.</div>
+                <InstallSwitcher exampleSlug="sonoscli" />
+              </div>
+            </div>
+            <div className="hero-card skills-home-soul-card">
+              <span className="skills-home-soul-kicker">Also on this deployment</span>
+              <h2 className="skills-home-soul-title">Browse and publish SOUL.md bundles.</h2>
+              <p className="skills-home-soul-copy">
+                Souls live alongside skills here, with their own catalog and upload flow.
+              </p>
+              <div className="skills-home-soul-actions">
+                <Link
+                  to="/souls"
+                  search={{
+                    q: undefined,
+                    sort: undefined,
+                    dir: undefined,
+                    view: undefined,
+                    focus: undefined,
+                  }}
+                  className="btn"
+                >
+                  Browse souls
+                </Link>
+                <Link
+                  to="/upload"
+                  search={{ mode: 'souls', updateSlug: undefined }}
+                  className="btn"
+                >
+                  Publish a soul
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -201,7 +236,11 @@ function OnlyCrabsHome() {
               public place.
             </p>
             <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-              <Link to="/upload" search={{ updateSlug: undefined }} className="btn btn-primary">
+              <Link
+                to="/upload"
+                search={{ mode: 'souls', updateSlug: undefined }}
+                className="btn btn-primary"
+              >
                 Publish a soul
               </Link>
               <Link
