@@ -41,7 +41,7 @@ export function Upload() {
   const requiredFileLabel = isSoulMode ? 'SOUL.md' : 'SKILL.md'
   const contentLabel = isSoulMode ? 'soul' : 'skill'
   const uploadSubtitle = isSoulMode
-    ? 'Upload a SOUL.md bundle. Souls currently accept only SOUL.md.'
+    ? 'Drop a folder with SOUL.md and supporting text files. SOUL.md powers summary and search; every uploaded file is public.'
     : 'Drop a folder with SKILL.md and text files. We will handle the rest.'
 
   const generateUploadUrl = useMutation(api.uploads.generateUploadUrl)
@@ -126,13 +126,6 @@ export function Upload() {
         const lower = path.trim().toLowerCase()
         return isSoulMode ? lower === 'soul.md' : lower === 'skill.md' || lower === 'skills.md'
       }),
-    [isSoulMode, normalizedPaths],
-  )
-  const unexpectedSoulFiles = useMemo(
-    () =>
-      isSoulMode
-        ? normalizedPaths.filter((path) => path.trim().toLowerCase() !== 'soul.md')
-        : [],
     [isSoulMode, normalizedPaths],
   )
   const sizeLabel = totalBytes ? formatBytes(totalBytes) : '0 B'
@@ -270,11 +263,6 @@ export function Upload() {
     if (!hasRequiredFile) {
       issues.push(`${requiredFileLabel} is required.`)
     }
-    if (unexpectedSoulFiles.length > 0) {
-      issues.push(
-        `Soul bundles can only include SOUL.md. Remove: ${unexpectedSoulFiles.slice(0, 3).join(', ')}`,
-      )
-    }
     const invalidFiles = files.filter((file) => !isTextFile(file))
     if (invalidFiles.length > 0) {
       issues.push(
@@ -305,7 +293,6 @@ export function Upload() {
     isSoulMode,
     totalBytes,
     requiredFileLabel,
-    unexpectedSoulFiles,
     slugCollision,
   ])
 
@@ -532,7 +519,7 @@ export function Upload() {
               </div>
               <span className="upload-dropzone-hint">
                 {isSoulMode
-                  ? 'A soul bundle should contain SOUL.md only. We keep folder paths and flatten the outer wrapper automatically.'
+                  ? 'A soul bundle must include SOUL.md. Supporting text files and subdirectories are allowed, and all uploaded files will be public. We keep folder paths and flatten the outer wrapper automatically.'
                   : 'We keep folder paths and flatten the outer wrapper automatically.'}
               </span>
               <button

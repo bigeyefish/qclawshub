@@ -106,7 +106,7 @@ describe('Upload route', () => {
     render(<Upload />)
 
     expect(screen.getByText(/Publish a soul/i)).toBeTruthy()
-    expect(screen.getByText(/Souls currently accept only SOUL\.md\./i)).toBeTruthy()
+    expect(screen.getByText(/SOUL\.md powers summary and search; every uploaded file is public\./i)).toBeTruthy()
     expect(screen.queryByText(/License/i)).toBeNull()
     expect(useActionHookMock).toHaveBeenCalledWith(api.souls.publishVersion)
     expect(useActionHookMock).toHaveBeenCalledWith(api.souls.generateChangelogPreview)
@@ -314,7 +314,7 @@ describe('Upload route', () => {
     expect(await screen.findByText(/All checks passed/i)).toBeTruthy()
   })
 
-  it('blocks extra files in soul mode before submit', async () => {
+  it('allows extra text files in soul mode before submit', async () => {
     searchMock = { mode: 'souls' }
 
     render(<Upload />)
@@ -335,10 +335,41 @@ describe('Upload route', () => {
     const input = screen.getByTestId('upload-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file, notes] } })
 
-    expect(
-      await screen.findByText(/Soul bundles can only include SOUL\.md\. Remove: notes\.txt/i),
-    ).toBeTruthy()
-    expect(screen.getByRole('button', { name: /publish soul/i }).getAttribute('disabled')).not.toBeNull()
+    expect(await screen.findByText('notes.txt')).toBeTruthy()
+    expect(await screen.findByText(/All checks passed/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /publish soul/i }).getAttribute('disabled')).toBeNull()
+  })
+
+  it('keeps nested soul file paths and still validates with SOUL.md present', async () => {
+    searchMock = { mode: 'souls' }
+
+    render(<Upload />)
+    fireEvent.change(screen.getByPlaceholderText('soul-name'), {
+      target: { value: 'workspace' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('My soul'), {
+      target: { value: 'Workspace' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('1.0.0'), {
+      target: { value: '1.0.0' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('latest, stable'), {
+      target: { value: 'latest' },
+    })
+
+    const soulFile = new File(['# Soul'], 'SOUL.md', { type: 'text/markdown' })
+    Object.defineProperty(soulFile, 'webkitRelativePath', { value: 'workspace/SOUL.md' })
+    const stateFile = new File(['{}'], 'workspace-state.json', { type: 'application/json' })
+    Object.defineProperty(stateFile, 'webkitRelativePath', {
+      value: 'workspace/.openclaw/workspace-state.json',
+    })
+
+    const input = screen.getByTestId('upload-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [soulFile, stateFile] } })
+
+    expect(await screen.findByText('.openclaw/workspace-state.json')).toBeTruthy()
+    expect(screen.queryByText('workspace/.openclaw/workspace-state.json')).toBeNull()
+    expect(await screen.findByText(/All checks passed/i)).toBeTruthy()
   })
 
   it('blocks publish in preflight when slug availability reports a collision', async () => {

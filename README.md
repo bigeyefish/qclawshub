@@ -40,7 +40,7 @@ onlycrabs.ai is the **SOUL.md registry**: publish and share system lore the same
 - Entry point is host-based: `onlycrabs.ai`.
 - On the onlycrabs.ai host, the home page and nav default to souls.
 - On ClawHub, souls live under `/souls`.
-- Soul bundles only accept `SOUL.md` for now (no extra files).
+- Soul bundles are folder-based and must include `SOUL.md`; supporting text files are allowed.
 
 ## How it works (high level)
 

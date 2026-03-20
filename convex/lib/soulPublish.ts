@@ -117,11 +117,6 @@ export async function publishSoulVersionForUser(
   const readmeFile = publishFiles.find((file) => isSoulFile(file.path))
   if (!readmeFile) throw new ConvexError('SOUL.md is required')
 
-  const nonSoulFiles = publishFiles.filter((file) => !isSoulFile(file.path))
-  if (nonSoulFiles.length > 0) {
-    throw new ConvexError('Only SOUL.md is allowed for soul bundles')
-  }
-
   const readmeText = await fetchText(ctx, readmeFile.storageId)
   const frontmatter = parseFrontmatter(readmeText)
   const summary = getFrontmatterValue(frontmatter, 'description') ?? deriveSoulSummary(readmeText)
