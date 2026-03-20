@@ -283,7 +283,7 @@ describe('Upload route', () => {
     expect(screen.getByText('screenshot.png')).toBeTruthy()
   })
 
-  it('shows an informational note when mac junk files are ignored', async () => {
+  it('shows an informational note when system files are ignored', async () => {
     render(<Upload />)
     fireEvent.change(screen.getByPlaceholderText('skill-name'), {
       target: { value: 'cool-skill' },
@@ -310,7 +310,37 @@ describe('Upload route', () => {
 
     expect(await screen.findByText('SKILL.md')).toBeTruthy()
     expect(screen.queryByText('.DS_Store')).toBeNull()
-    expect(await screen.findByText(/Ignored 1 macOS junk file/i)).toBeTruthy()
+    expect(await screen.findByText(/Ignored 1 system or repo file/i)).toBeTruthy()
+    expect(await screen.findByText(/All checks passed/i)).toBeTruthy()
+  })
+
+  it('ignores repository metadata files from selected folders', async () => {
+    searchMock = { mode: 'souls' }
+
+    render(<Upload />)
+    fireEvent.change(screen.getByPlaceholderText('soul-name'), {
+      target: { value: 'workspace-helper' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('My soul'), {
+      target: { value: 'Workspace Helper' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('1.0.0'), {
+      target: { value: '1.0.0' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('latest, stable'), {
+      target: { value: 'latest' },
+    })
+
+    const soulFile = new File(['# Soul'], 'SOUL.md', { type: 'text/markdown' })
+    Object.defineProperty(soulFile, 'webkitRelativePath', { value: 'workspace/SOUL.md' })
+    const gitConfig = new File(['[core]'], 'config', { type: 'text/plain' })
+    Object.defineProperty(gitConfig, 'webkitRelativePath', { value: 'workspace/.git/config' })
+
+    const input = screen.getByTestId('upload-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [soulFile, gitConfig] } })
+
+    expect(screen.queryByText('config')).toBeNull()
+    expect(await screen.findByText(/Ignored 1 system or repo file/i)).toBeTruthy()
     expect(await screen.findByText(/All checks passed/i)).toBeTruthy()
   })
 

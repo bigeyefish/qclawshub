@@ -70,7 +70,7 @@ export function Upload() {
 
   const [hasAttempted, setHasAttempted] = useState(false)
   const [files, setFiles] = useState<File[]>([])
-  const [ignoredMacJunkPaths, setIgnoredMacJunkPaths] = useState<string[]>([])
+  const [ignoredSystemPaths, setIgnoredSystemPaths] = useState<string[]>([])
   const [slug, setSlug] = useState(updateSlug ?? '')
   const [displayName, setDisplayName] = useState('')
   const [version, setVersion] = useState('1.0.0')
@@ -129,15 +129,15 @@ export function Upload() {
     [isSoulMode, normalizedPaths],
   )
   const sizeLabel = totalBytes ? formatBytes(totalBytes) : '0 B'
-  const ignoredMacJunkNote = useMemo(() => {
-    if (ignoredMacJunkPaths.length === 0) return null
+  const ignoredSystemNote = useMemo(() => {
+    if (ignoredSystemPaths.length === 0) return null
     const labels = Array.from(
-      new Set(ignoredMacJunkPaths.map((path) => path.split('/').at(-1) ?? path)),
+      new Set(ignoredSystemPaths.map((path) => path.split('/').at(-1) ?? path)),
     ).slice(0, 3)
-    const suffix = ignoredMacJunkPaths.length > 3 ? ', ...' : ''
-    const count = ignoredMacJunkPaths.length
-    return `Ignored ${count} macOS junk file${count === 1 ? '' : 's'} (${labels.join(', ')}${suffix})`
-  }, [ignoredMacJunkPaths])
+    const suffix = ignoredSystemPaths.length > 3 ? ', ...' : ''
+    const count = ignoredSystemPaths.length
+    return `Ignored ${count} system or repo file${count === 1 ? '' : 's'} (${labels.join(', ')}${suffix})`
+  }, [ignoredSystemPaths])
   const trimmedSlug = slug.trim()
   const trimmedName = displayName.trim()
   const trimmedChangelog = changelog.trim()
@@ -243,7 +243,7 @@ export function Upload() {
     if (!trimmedSlug) {
       issues.push('Slug is required.')
     } else if (!SLUG_PATTERN.test(trimmedSlug)) {
-      issues.push('Slug must be lowercase and use dashes only.')
+      issues.push('Slug must use lowercase letters, numbers, and dashes only.')
     }
     if (!trimmedName) {
       issues.push('Display name is required.')
@@ -302,7 +302,7 @@ export function Upload() {
   async function applyExpandedFiles(selected: File[]) {
     const report = await expandFilesWithReport(selected)
     setFiles(report.files)
-    setIgnoredMacJunkPaths(report.ignoredMacJunkPaths)
+    setIgnoredSystemPaths(report.ignoredSystemPaths)
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -543,7 +543,7 @@ export function Upload() {
               ))
             )}
           </div>
-          {ignoredMacJunkNote ? <div className="stat">{ignoredMacJunkNote}</div> : null}
+          {ignoredSystemNote ? <div className="stat">{ignoredSystemNote}</div> : null}
         </div>
 
         <div className="card upload-panel" ref={validationRef}>

@@ -87,7 +87,7 @@ describe('expandFiles', () => {
     expect(png).toBeUndefined()
   })
 
-  it('filters mac junk files and reports ignored paths', async () => {
+  it('filters system files and reports ignored paths', async () => {
     const report = await expandFilesWithReport([
       new File(['hello'], 'SKILL.md', { type: 'text/markdown' }),
       new File(['junk'], '.DS_Store', { type: 'application/octet-stream' }),
@@ -95,7 +95,18 @@ describe('expandFiles', () => {
     ])
 
     expect(report.files.map((file) => file.name)).toEqual(['SKILL.md'])
-    expect(report.ignoredMacJunkPaths).toEqual(['.DS_Store', '._notes.md'])
+    expect(report.ignoredSystemPaths).toEqual(['.DS_Store', '._notes.md'])
+  })
+
+  it('filters repository metadata paths from selected files', async () => {
+    const skill = new File(['hello'], 'SKILL.md', { type: 'text/markdown' })
+    const gitConfig = new File(['[core]'], 'config', { type: 'text/plain' })
+    Object.defineProperty(gitConfig, 'webkitRelativePath', { value: 'demo/.git/config' })
+
+    const report = await expandFilesWithReport([skill, gitConfig])
+
+    expect(report.files.map((file) => file.name)).toEqual(['SKILL.md'])
+    expect(report.ignoredSystemPaths).toEqual(['demo/.git/config'])
   })
 
   it('expands gzipped tar archives into files', async () => {
