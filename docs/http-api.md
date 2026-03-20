@@ -23,7 +23,7 @@ Enforcement model:
 
 - Read: 120/min per IP, 600/min per key
 - Write: 30/min per IP, 120/min per key
-- Download: 20/min per IP, 120/min per key (`/api/v1/download`)
+- Download: 20/min per IP, 120/min per key (`/api/v1/download`, `/api/v1/souls/{slug}/download`)
 
 Headers:
 
@@ -187,6 +187,21 @@ Notes:
 - Defaults to latest version.
 - File size limit: 200KB.
 
+### `GET /api/v1/souls/{slug}/file`
+
+Returns raw text content for one file inside a soul bundle.
+
+Query params:
+
+- `path` (required)
+- `version` (optional)
+- `tag` (optional)
+
+Notes:
+
+- Defaults to latest version.
+- File size limit: 200KB.
+
 ### `GET /api/v1/resolve`
 
 Used by the CLI to map a local fingerprint to a known version.
@@ -217,6 +232,21 @@ Notes:
 - If neither `version` nor `tag` is provided, the latest version is used.
 - Soft-deleted versions return `410`.
 - Download stats are counted as unique identities per hour (`userId` when API token is valid, otherwise IP).
+
+### `GET /api/v1/souls/{slug}/download`
+
+Downloads a zip of a soul bundle version.
+
+Query params:
+
+- `version` (optional): semver string
+- `tag` (optional): tag name (e.g. `latest`)
+
+Notes:
+
+- If neither `version` nor `tag` is provided, the latest version is used.
+- Soft-deleted versions return `410`.
+- Current soul download stats increment on each successful zip request.
 
 ## Auth endpoints (Bearer token)
 

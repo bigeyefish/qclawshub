@@ -1,6 +1,8 @@
 import { api, internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx } from '../_generated/server'
+import { corsHeaders, mergeHeaders } from '../lib/httpHeaders'
+import { buildDeterministicZip } from '../lib/skillZip'
 import { requireApiTokenUser } from '../lib/apiTokenAuth'
 import { applyRateLimit, parseBearerToken } from '../lib/httpRateLimit'
 import { publishSoulVersionForUser } from '../souls'
@@ -121,10 +123,9 @@ export async function listSoulsV1Handler(ctx: ActionCtx, request: Request) {
 }
 
 export async function soulsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
-  const rate = await applyRateLimit(ctx, request, 'read')
-  if (!rate.ok) return rate.response
-
   const segments = getPathSegments(request, '/api/v1/souls/')
+  const rate = await applyRateLimit(ctx, request, segments[1] === 'download' ? 'download' : 'read')
+  if (!rate.ok) return rate.response
   if (segments.length === 0) return text('Missing slug', 400, rate.headers)
   const slug = segments[0]?.trim().toLowerCase() ?? ''
   const second = segments[1]
@@ -273,6 +274,67 @@ export async function soulsGetRouterV1Handler(ctx: ActionCtx, request: Request) 
       sha256: file.sha256,
       size: file.size,
       headers: rate.headers,
+    })
+  }
+
+  if (second === 'download' && segments.length === 2) {
+    const url = new URL(request.url)
+    const versionParam = url.searchParams.get('version')?.trim()
+    const tagParam = url.searchParams.get('tag')?.trim()
+
+    const soul = await ctx.runQuery(internal.souls.getSoulBySlugInternal, { slug })
+    if (!soul || soul.softDeletedAt) return text('Soul not found', 404, rate.headers)
+
+    let version = soul.latestVersionId
+      ? await ctx.runQuery(internal.souls.getVersionByIdInternal, {
+          versionId: soul.latestVersionId,
+        })
+      : null
+    if (versionParam) {
+      version = await ctx.runQuery(internal.souls.getVersionBySoulAndVersionInternal, {
+        soulId: soul._id,
+        version: versionParam,
+      })
+    } else if (tagParam) {
+      const versionId = soul.tags[tagParam]
+      if (versionId) {
+        version = await ctx.runQuery(internal.souls.getVersionByIdInternal, { versionId })
+      }
+    }
+
+    if (!version) return text('Version not found', 404, rate.headers)
+    if (version.softDeletedAt) return text('Version not available', 410, rate.headers)
+
+    const entries: Array<{ path: string; bytes: Uint8Array }> = []
+    for (const file of version.files) {
+      const blob = await ctx.storage.get(file.storageId)
+      if (!blob) continue
+      entries.push({
+        path: file.path,
+        bytes: new Uint8Array(await blob.arrayBuffer()),
+      })
+    }
+
+    const zipArray = buildDeterministicZip(entries, {
+      ownerId: String(soul.ownerUserId),
+      slug: soul.slug,
+      version: version.version,
+      publishedAt: version.createdAt,
+    })
+
+    void ctx.runMutation(internal.soulDownloads.incrementInternal, { soulId: soul._id })
+
+    return new Response(new Blob([zipArray], { type: 'application/zip' }), {
+      status: 200,
+      headers: mergeHeaders(
+        rate.headers,
+        {
+          'Content-Type': 'application/zip',
+          'Content-Disposition': `attachment; filename="${slug}-${version.version}.zip"`,
+          'Cache-Control': 'private, max-age=60',
+        },
+        corsHeaders(),
+      ),
     })
   }
 

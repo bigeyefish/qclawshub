@@ -168,9 +168,10 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
 
   const ownerHandle = owner?.handle ?? owner?.name ?? null
   const convexSiteUrl = getRuntimeEnv('VITE_CONVEX_SITE_URL') ?? 'https://clawhub.ai'
-  const downloadBase = `${convexSiteUrl}/api/v1/souls/${soul.slug}/file`
+  const fileDownloadBase = `${convexSiteUrl}/api/v1/souls/${soul.slug}/file`
+  const zipDownloadBase = `${convexSiteUrl}/api/v1/souls/${soul.slug}/download`
   const selectedFileDownloadHref = selectedPath
-    ? `${downloadBase}?path=${encodeURIComponent(selectedPath)}`
+    ? `${fileDownloadBase}?path=${encodeURIComponent(selectedPath)}`
     : null
 
   function handleSelectFile(path: string) {
@@ -249,10 +250,10 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
               </div>
               <a
                 className="btn btn-primary"
-                href={`${downloadBase}?path=SOUL.md`}
-                aria-label="Download SOUL.md"
+                href={zipDownloadBase}
+                aria-label="Download zip"
               >
-                Download SOUL.md
+                Download zip
               </a>
             </div>
           </div>
@@ -359,11 +360,9 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
                   <div className="version-actions">
                     <a
                       className="btn version-zip"
-                      href={`${downloadBase}?path=SOUL.md&version=${encodeURIComponent(
-                        version.version,
-                      )}`}
+                      href={`${zipDownloadBase}?version=${encodeURIComponent(version.version)}`}
                     >
-                      SOUL.md
+                      Zip
                     </a>
                   </div>
                 </div>

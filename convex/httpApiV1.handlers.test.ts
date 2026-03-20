@@ -1,4 +1,5 @@
 /* @vitest-environment node */
+import { unzipSync } from 'fflate'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { internal } from './_generated/api'
 
@@ -708,6 +709,76 @@ describe('httpApiV1 handlers', () => {
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('hello')
     expect(storageGet).toHaveBeenCalledWith('_storage:2')
+    expect(runMutation).toHaveBeenCalledWith(internal.soulDownloads.incrementInternal, {
+      soulId: 'souls:1',
+    })
+  })
+
+  it('souls download returns a zip with all published files', async () => {
+    const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+      if ('slug' in args) {
+        return {
+          _id: 'souls:1',
+          slug: 'demo-soul',
+          displayName: 'Demo Soul',
+          ownerUserId: 'users:1',
+          tags: { latest: 'soulVersions:1' },
+          latestVersionId: 'soulVersions:1',
+          softDeletedAt: undefined,
+        }
+      }
+      if ('versionId' in args) {
+        return {
+          _id: 'soulVersions:1',
+          version: '1.0.0',
+          createdAt: 3,
+          files: [
+            {
+              path: 'SOUL.md',
+              size: 5,
+              storageId: '_storage:1',
+              sha256: 'abc123',
+              contentType: 'text/markdown',
+            },
+            {
+              path: 'docs/voice.txt',
+              size: 5,
+              storageId: '_storage:2',
+              sha256: 'def456',
+              contentType: 'text/plain',
+            },
+          ],
+          softDeletedAt: undefined,
+        }
+      }
+      return null
+    })
+    const runMutation = vi.fn().mockResolvedValue(okRate())
+    const storageGet = vi.fn(async (storageId: string) => {
+      if (storageId === '_storage:1') return new Blob(['hello'], { type: 'text/markdown' })
+      if (storageId === '_storage:2') return new Blob(['voice'], { type: 'text/plain' })
+      return null
+    })
+
+    const response = await __handlers.soulsGetRouterV1Handler(
+      makeCtx({
+        runQuery,
+        runMutation,
+        storage: { get: storageGet },
+      }),
+      new Request('https://example.com/api/v1/souls/demo-soul/download'),
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('application/zip')
+    expect(response.headers.get('Content-Disposition')).toBe(
+      'attachment; filename="demo-soul-1.0.0.zip"',
+    )
+
+    const zipEntries = unzipSync(new Uint8Array(await response.arrayBuffer()))
+    expect(new TextDecoder().decode(zipEntries['SOUL.md'])).toBe('hello')
+    expect(new TextDecoder().decode(zipEntries['docs/voice.txt'])).toBe('voice')
+
     expect(runMutation).toHaveBeenCalledWith(internal.soulDownloads.incrementInternal, {
       soulId: 'souls:1',
     })

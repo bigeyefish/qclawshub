@@ -73,6 +73,11 @@ Public read:
 - `GET /api/v1/skills/{slug}/versions/{version}`
 - `GET /api/v1/skills/{slug}/scan?version=&tag=`
 - `GET /api/v1/skills/{slug}/file?path=&version=&tag=`
+- `GET /api/v1/souls/{slug}`
+- `GET /api/v1/souls/{slug}/versions?limit=&cursor=`
+- `GET /api/v1/souls/{slug}/versions/{version}`
+- `GET /api/v1/souls/{slug}/file?path=&version=&tag=`
+- `GET /api/v1/souls/{slug}/download?version=&tag=`
 - `GET /api/v1/resolve?slug=&hash=`
 - `GET /api/v1/download?slug=&version=&tag=`
 
