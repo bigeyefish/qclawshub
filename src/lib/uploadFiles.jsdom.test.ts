@@ -35,14 +35,14 @@ describe('expandFiles (jsdom)', () => {
     expect(expanded.map((file) => file.name)).toEqual(['SKILL.md', 'notes.txt'])
   })
 
-  it('filters mac junk files and returns ignored paths', async () => {
+  it('filters system files and returns ignored paths', async () => {
     const report = await expandFilesWithReport([
       new File(['hello'], 'SKILL.md', { type: 'text/markdown' }),
       new File(['junk'], '.DS_Store', { type: 'application/octet-stream' }),
     ])
 
     expect(report.files.map((file) => file.name)).toEqual(['SKILL.md'])
-    expect(report.ignoredMacJunkPaths).toEqual(['.DS_Store'])
+    expect(report.ignoredSystemPaths).toEqual(['.DS_Store'])
   })
 })
 
