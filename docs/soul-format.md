@@ -9,11 +9,15 @@ read_when:
 
 ## On disk
 
-A soul is a single file:
+A soul is a folder bundle.
+
+Required:
 
 - `SOUL.md` (or `soul.md`)
 
-For now, onlycrabs.ai rejects any extra files.
+Optional:
+
+- any supporting text-based files in the same folder or subdirectories
 
 ## `SOUL.md`
 

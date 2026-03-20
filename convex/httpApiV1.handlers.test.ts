@@ -587,7 +587,71 @@ describe('httpApiV1 handlers', () => {
     expect(json.soul.tags.latest).toBe('1.0.0')
   })
 
-  it('souls file download loads storage from internal version docs', async () => {
+  it('souls version detail returns all published files', async () => {
+    const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+      if ('slug' in args) {
+        return {
+          _id: 'souls:1',
+          slug: 'demo-soul',
+          displayName: 'Demo Soul',
+          tags: { latest: 'soulVersions:1' },
+          latestVersionId: 'soulVersions:1',
+          softDeletedAt: undefined,
+        }
+      }
+      if ('soulId' in args && 'version' in args) {
+        return {
+          _id: 'soulVersions:1',
+          version: '1.0.0',
+          createdAt: 3,
+          changelog: 'c',
+          changelogSource: 'user',
+          files: [
+            {
+              path: 'SOUL.md',
+              size: 5,
+              storageId: '_storage:1',
+              sha256: 'abc123',
+              contentType: 'text/markdown',
+            },
+            {
+              path: '.openclaw/workspace-state.json',
+              size: 7,
+              storageId: '_storage:2',
+              sha256: 'def456',
+              contentType: 'application/json',
+            },
+          ],
+          softDeletedAt: undefined,
+        }
+      }
+      return null
+    })
+    const runMutation = vi.fn().mockResolvedValue(okRate())
+    const response = await __handlers.soulsGetRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/souls/demo-soul/versions/1.0.0'),
+    )
+
+    expect(response.status).toBe(200)
+    const json = await response.json()
+    expect(json.version.files).toEqual([
+      {
+        path: 'SOUL.md',
+        size: 5,
+        sha256: 'abc123',
+        contentType: 'text/markdown',
+      },
+      {
+        path: '.openclaw/workspace-state.json',
+        size: 7,
+        sha256: 'def456',
+        contentType: 'application/json',
+      },
+    ])
+  })
+
+  it('souls file download loads nested support files from internal version docs', async () => {
     const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
       if ('slug' in args) {
         return {
@@ -613,6 +677,13 @@ describe('httpApiV1 handlers', () => {
               sha256: 'abc123',
               contentType: 'text/markdown',
             },
+            {
+              path: '.openclaw/workspace-state.json',
+              size: 7,
+              storageId: '_storage:2',
+              sha256: 'def456',
+              contentType: 'application/json',
+            },
           ],
           softDeletedAt: undefined,
         }
@@ -629,12 +700,14 @@ describe('httpApiV1 handlers', () => {
         runMutation,
         storage: { get: storageGet },
       }),
-      new Request('https://example.com/api/v1/souls/demo-soul/file?path=SOUL.md'),
+      new Request(
+        'https://example.com/api/v1/souls/demo-soul/file?path=.openclaw%2Fworkspace-state.json',
+      ),
     )
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('hello')
-    expect(storageGet).toHaveBeenCalledWith('_storage:1')
+    expect(storageGet).toHaveBeenCalledWith('_storage:2')
     expect(runMutation).toHaveBeenCalledWith(internal.soulDownloads.incrementInternal, {
       soulId: 'souls:1',
     })

@@ -208,6 +208,46 @@ describe('version file access actions', () => {
     ).resolves.toMatchObject({ path: 'SKILL.md', text: '# skill' })
   })
 
+  it('allows public access to visible soul support files', async () => {
+    const ctx = makeActionCtx({
+      version: {
+        _id: 'soulVersions:1',
+        _creationTime: 1,
+        soulId: 'souls:1',
+        version: '1.0.0',
+        changelog: 'init',
+        files: [
+          {
+            path: 'SOUL.md',
+            size: 10,
+            storageId: '_storage:1',
+            sha256: 'abc',
+            contentType: 'text/markdown',
+          },
+          {
+            path: '.openclaw/workspace-state.json',
+            size: 20,
+            storageId: '_storage:2',
+            sha256: 'def',
+            contentType: 'application/json',
+          },
+        ],
+      },
+      soul: {
+        _id: 'souls:1',
+        ownerUserId: 'users:owner',
+        softDeletedAt: undefined,
+      },
+    })
+
+    await expect(
+      getSoulFileTextHandler._handler(
+        ctx,
+        { versionId: 'soulVersions:1', path: '.openclaw/workspace-state.json' } as never,
+      ),
+    ).resolves.toMatchObject({ path: '.openclaw/workspace-state.json', text: '# soul' })
+  })
+
   it('blocks unauthenticated access to deleted soul versions', async () => {
     const ctx = makeActionCtx({
       version: {

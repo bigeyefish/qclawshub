@@ -90,7 +90,7 @@ From SKILL.md frontmatter + AgentSkills + Clawdis extensions:
 - `version` (semver string)
 - `tag` (string, optional; `latest` always maintained separately)
 - `changelog` (required)
-- `files`: list of file metadata (SOUL.md only)
+- `files`: list of file metadata (must include `SOUL.md`, may include supporting text files)
   - `path`, `size`, `storageId`, `sha256`
 - `parsed` (metadata extracted from SOUL.md)
 - `vectorDocId` (if using RAG component) OR `embeddingId`
@@ -140,7 +140,7 @@ From SKILL.md frontmatter + AgentSkills + Clawdis extensions:
    - GitHub account age ≥ 14 days
 5) Server stores files + metadata, sets `latest` tag, updates stats.
 
-Soul upload flow: same as skills (including GitHub account age checks), but only `SOUL.md` is allowed.
+Soul upload flow: same as skills (including GitHub account age checks), but souls must include `SOUL.md` and may include other text files.
 Seed data lives in `convex/seed.ts` for local dev.
 
 ## Versioning + tags
