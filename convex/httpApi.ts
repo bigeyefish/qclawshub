@@ -13,6 +13,10 @@ import { httpAction } from './functions'
 import { requireApiTokenUser } from './lib/apiTokenAuth'
 import { corsHeaders, mergeHeaders } from './lib/httpHeaders'
 import { parseBooleanQueryParam, resolveBooleanQueryParam } from './lib/httpUtils'
+import {
+  ensurePublishAccessForAction,
+  isPublishAccessDeniedMessage,
+} from './lib/publishAccess'
 import { publishVersionForUser } from './skills'
 
 type SearchSkillEntry = {
@@ -146,12 +150,15 @@ export const cliWhoamiHttp = httpAction(cliWhoamiHandler)
 
 async function cliUploadUrlHandler(ctx: ActionCtx, request: Request) {
   try {
-    const { userId } = await requireApiTokenUser(ctx, request)
+    const { userId, user } = await requireApiTokenUser(ctx, request)
+    await ensurePublishAccessForAction(ctx, userId, user)
     const uploadUrl = await ctx.runMutation(internal.uploads.generateUploadUrlForUserInternal, {
       userId,
     })
     return json({ uploadUrl })
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unauthorized'
+    if (isPublishAccessDeniedMessage(message)) return text(message, 403)
     return text('Unauthorized', 401)
   }
 }
@@ -167,7 +174,8 @@ async function cliPublishHandler(ctx: ActionCtx, request: Request) {
   }
 
   try {
-    const { userId } = await requireApiTokenUser(ctx, request)
+    const { userId, user } = await requireApiTokenUser(ctx, request)
+    await ensurePublishAccessForAction(ctx, userId, user)
     const args = parsePublishBody(body)
     if (!hasAcceptedLegacyLicenseTerms(args.acceptLicenseTerms)) {
       return text('MIT-0 license terms must be accepted to publish skills', 400)
@@ -177,6 +185,7 @@ async function cliPublishHandler(ctx: ActionCtx, request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Publish failed'
     if (message.toLowerCase().includes('unauthorized')) return text('Unauthorized', 401)
+    if (isPublishAccessDeniedMessage(message)) return text(message, 403)
     return text(message, 400)
   }
 }

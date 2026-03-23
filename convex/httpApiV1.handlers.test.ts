@@ -13,8 +13,11 @@ vi.mock('./skills', () => ({
 }))
 
 const { getOptionalApiTokenUserId, requireApiTokenUser } = await import('./lib/apiTokenAuth')
+const { PUBLISH_ACCESS_DENIED_MESSAGE } = await import('./lib/publishAccess')
 const { publishVersionForUser } = await import('./skills')
 const { __handlers } = await import('./httpApiV1')
+
+const originalPublishAllowlist = process.env.PUBLISH_ALLOWLIST
 
 type ActionCtx = import('./_generated/server').ActionCtx
 
@@ -72,9 +75,70 @@ beforeEach(() => {
   vi.mocked(getOptionalApiTokenUserId).mockResolvedValue(null)
   vi.mocked(requireApiTokenUser).mockReset()
   vi.mocked(publishVersionForUser).mockReset()
+  if (originalPublishAllowlist === undefined) delete process.env.PUBLISH_ALLOWLIST
+  else process.env.PUBLISH_ALLOWLIST = originalPublishAllowlist
 })
 
 describe('httpApiV1 handlers', () => {
+  it('skills publish returns 403 when caller is outside the publish allowlist', async () => {
+    process.env.PUBLISH_ALLOWLIST = 'users:allowed'
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:blocked',
+      user: { _id: 'users:blocked', handle: 'blocked', name: 'blocked-gh' },
+    } as never)
+
+    const response = await __handlers.publishSkillV1Handler(
+      makeCtx({}),
+      new Request('https://example.com/api/v1/skills', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          slug: 'demo',
+          displayName: 'Demo',
+          version: '1.0.0',
+          changelog: '',
+          acceptLicenseTerms: true,
+          files: [],
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.text()).toBe(PUBLISH_ACCESS_DENIED_MESSAGE)
+  })
+
+  it('souls publish returns 403 when caller is outside the publish allowlist', async () => {
+    process.env.PUBLISH_ALLOWLIST = 'users:allowed'
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:blocked',
+      user: { _id: 'users:blocked', handle: 'blocked', name: 'blocked-gh' },
+    } as never)
+
+    const response = await __handlers.publishSoulV1Handler(
+      makeCtx({}),
+      new Request('https://example.com/api/v1/souls', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer token',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          slug: 'demo',
+          displayName: 'Demo',
+          version: '1.0.0',
+          changelog: '',
+          files: [],
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.text()).toBe(PUBLISH_ACCESS_DENIED_MESSAGE)
+  })
+
   it('search returns empty results for blank query', async () => {
     const runAction = vi.fn()
     const runMutation = vi.fn().mockResolvedValue(okRate())

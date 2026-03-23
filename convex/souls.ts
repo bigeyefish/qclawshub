@@ -5,6 +5,7 @@ import type { ActionCtx } from './_generated/server'
 import { action, internalMutation, internalQuery, mutation, query } from './functions'
 import { assertModerator, requireUser, requireUserFromAction } from './lib/access'
 import { embeddingVisibilityFor } from './lib/embeddingVisibility'
+import { ensurePublishAccessForAction } from './lib/publishAccess'
 import { toPublicSoul, toPublicUser } from './lib/public'
 import { getFrontmatterValue, hashSkillFiles } from './lib/skills'
 import { generateSoulChangelogPreview } from './lib/soulChangelog'
@@ -273,7 +274,8 @@ export const publishVersion: ReturnType<typeof action> = action({
     ),
   },
   handler: async (ctx, args): Promise<PublishResult> => {
-    const { userId } = await requireUserFromAction(ctx)
+    const { userId, user } = await requireUserFromAction(ctx)
+    await ensurePublishAccessForAction(ctx, userId, user)
     return publishSoulVersionForUser(ctx, userId, args)
   },
 })
