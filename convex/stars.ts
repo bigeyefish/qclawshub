@@ -1,8 +1,17 @@
 import { v } from 'convex/values'
+import type { Id } from './_generated/dataModel'
+import type { MutationCtx } from './_generated/server'
 import { internalMutation, mutation, query } from './functions'
 import { requireUser } from './lib/access'
 import { toPublicSkill } from './lib/public'
-import { insertStatEvent } from './skillStatEvents'
+import { applySkillStatDeltas } from './lib/skillStats'
+
+async function patchSkillStars(ctx: MutationCtx, skillId: Id<'skills'>, delta: 1 | -1) {
+  const skill = await ctx.db.get(skillId)
+  if (!skill) throw new Error('Skill not found')
+  await ctx.db.patch(skill._id, applySkillStatDeltas(skill, { stars: delta }))
+  return skill
+}
 
 export const isStarred = query({
   args: { skillId: v.id('skills') },
@@ -20,9 +29,6 @@ export const toggle = mutation({
   args: { skillId: v.id('skills') },
   handler: async (ctx, args) => {
     const { userId } = await requireUser(ctx)
-    const skill = await ctx.db.get(args.skillId)
-    if (!skill) throw new Error('Skill not found')
-
     const existing = await ctx.db
       .query('stars')
       .withIndex('by_skill_user', (q) => q.eq('skillId', args.skillId).eq('userId', userId))
@@ -30,7 +36,7 @@ export const toggle = mutation({
 
     if (existing) {
       await ctx.db.delete(existing._id)
-      await insertStatEvent(ctx, { skillId: skill._id, kind: 'unstar' })
+      await patchSkillStars(ctx, args.skillId, -1)
       return { starred: false }
     }
 
@@ -39,8 +45,7 @@ export const toggle = mutation({
       userId,
       createdAt: Date.now(),
     })
-
-    await insertStatEvent(ctx, { skillId: skill._id, kind: 'star' })
+    await patchSkillStars(ctx, args.skillId, 1)
 
     return { starred: true }
   },
@@ -69,8 +74,6 @@ export const listByUser = query({
 export const addStarInternal = internalMutation({
   args: { userId: v.id('users'), skillId: v.id('skills') },
   handler: async (ctx, args) => {
-    const skill = await ctx.db.get(args.skillId)
-    if (!skill) throw new Error('Skill not found')
     const existing = await ctx.db
       .query('stars')
       .withIndex('by_skill_user', (q) => q.eq('skillId', args.skillId).eq('userId', args.userId))
@@ -82,8 +85,7 @@ export const addStarInternal = internalMutation({
       userId: args.userId,
       createdAt: Date.now(),
     })
-
-    await insertStatEvent(ctx, { skillId: skill._id, kind: 'star' })
+    await patchSkillStars(ctx, args.skillId, 1)
 
     return { ok: true as const, starred: true, alreadyStarred: false }
   },
@@ -92,8 +94,6 @@ export const addStarInternal = internalMutation({
 export const removeStarInternal = internalMutation({
   args: { userId: v.id('users'), skillId: v.id('skills') },
   handler: async (ctx, args) => {
-    const skill = await ctx.db.get(args.skillId)
-    if (!skill) throw new Error('Skill not found')
     const existing = await ctx.db
       .query('stars')
       .withIndex('by_skill_user', (q) => q.eq('skillId', args.skillId).eq('userId', args.userId))
@@ -101,7 +101,7 @@ export const removeStarInternal = internalMutation({
     if (!existing) return { ok: true as const, unstarred: false, alreadyUnstarred: true }
 
     await ctx.db.delete(existing._id)
-    await insertStatEvent(ctx, { skillId: skill._id, kind: 'unstar' })
+    await patchSkillStars(ctx, args.skillId, -1)
 
     return { ok: true as const, unstarred: true, alreadyUnstarred: false }
   },

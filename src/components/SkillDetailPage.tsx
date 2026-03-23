@@ -99,6 +99,7 @@ export function SkillDetailPage({
   const [reportReason, setReportReason] = useState('')
   const [reportError, setReportError] = useState<string | null>(null)
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
+  const [isTogglingStar, setIsTogglingStar] = useState(false)
 
   const isLoadingSkill = isStaff ? staffResult === undefined : result === undefined
   const skill = result?.skill
@@ -271,6 +272,19 @@ export function SkillDetailPage({
     })
   }
 
+  const handleToggleStar = async () => {
+    if (!skill || isTogglingStar) return
+    setIsTogglingStar(true)
+    try {
+      await toggleStar({ skillId: skill._id })
+    } catch (error) {
+      console.error('Failed to toggle skill star', error)
+      window.alert('Unable to update the star right now. Please try again.')
+    } finally {
+      setIsTogglingStar(false)
+    }
+  }
+
   const submitReport = async () => {
     if (!skill) return
 
@@ -330,7 +344,8 @@ export function SkillDetailPage({
           isAuthenticated={isAuthenticated}
           isStaff={isStaff}
           isStarred={isStarred}
-          onToggleStar={() => void toggleStar({ skillId: skill._id })}
+          isTogglingStar={isTogglingStar}
+          onToggleStar={() => void handleToggleStar()}
           onOpenReport={openReportDialog}
           forkOf={forkOf}
           forkOfLabel={forkOfLabel}
