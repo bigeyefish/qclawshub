@@ -10,9 +10,12 @@ vi.mock('./skills', () => ({
 }))
 
 const { requireApiTokenUser } = await import('./lib/apiTokenAuth')
+const { PUBLISH_ACCESS_DENIED_MESSAGE } = await import('./lib/publishAccess')
 const { publishVersionForUser } = await import('./skills')
 const { __handlers } = await import('./httpApi')
 const { hashSkillFiles } = await import('./lib/skills')
+
+const originalPublishAllowlist = process.env.PUBLISH_ALLOWLIST
 
 function makeCtx(partial: Record<string, unknown>) {
   return partial as unknown as import('./_generated/server').ActionCtx
@@ -22,6 +25,53 @@ describe('httpApi handlers', () => {
   afterEach(() => {
     vi.mocked(requireApiTokenUser).mockReset()
     vi.mocked(publishVersionForUser).mockReset()
+    if (originalPublishAllowlist === undefined) delete process.env.PUBLISH_ALLOWLIST
+    else process.env.PUBLISH_ALLOWLIST = originalPublishAllowlist
+  })
+
+  it('cliUploadUrlHttp returns 403 when caller is outside the publish allowlist', async () => {
+    process.env.PUBLISH_ALLOWLIST = 'users:allowed'
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:blocked',
+      user: { _id: 'users:blocked', handle: 'blocked', name: 'blocked-gh' },
+    } as never)
+
+    const response = await __handlers.cliUploadUrlHandler(
+      makeCtx({ runQuery: vi.fn().mockResolvedValue(null), runMutation: vi.fn() }),
+      new Request('https://example.com/api/cli/upload-url', {
+        headers: { authorization: 'Bearer test-token' },
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.text()).toBe(PUBLISH_ACCESS_DENIED_MESSAGE)
+  })
+
+  it('cliPublishHttp returns 403 when caller is outside the publish allowlist', async () => {
+    process.env.PUBLISH_ALLOWLIST = 'users:allowed'
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:blocked',
+      user: { _id: 'users:blocked', handle: 'blocked', name: 'blocked-gh' },
+    } as never)
+
+    const response = await __handlers.cliPublishHandler(
+      makeCtx({ runQuery: vi.fn().mockResolvedValue(null) }),
+      new Request('https://example.com/api/cli/publish', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer test-token' },
+        body: JSON.stringify({
+          slug: 'demo',
+          displayName: 'Demo',
+          version: '1.0.0',
+          changelog: '',
+          acceptLicenseTerms: true,
+          files: [],
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.text()).toBe(PUBLISH_ACCESS_DENIED_MESSAGE)
   })
 
   it('searchSkillsHttp returns empty results for empty query', async () => {

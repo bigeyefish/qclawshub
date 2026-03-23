@@ -3,6 +3,10 @@ import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx } from '../_generated/server'
 import { getOptionalApiTokenUserId, requireApiTokenUser } from '../lib/apiTokenAuth'
 import { parseBooleanQueryParam, resolveBooleanQueryParam } from '../lib/httpUtils'
+import {
+  ensurePublishAccessForAction,
+  isPublishAccessDeniedMessage,
+} from '../lib/publishAccess'
 import { applyRateLimit, parseBearerToken } from '../lib/httpRateLimit'
 import { publishVersionForUser } from '../skills'
 import {
@@ -862,10 +866,11 @@ export async function publishSkillV1Handler(ctx: ActionCtx, request: Request) {
   } catch {
     return text('Unauthorized', 401, rate.headers)
   }
-  const { userId } = await requireApiTokenUser(ctx, request)
+  const { userId, user } = await requireApiTokenUser(ctx, request)
 
   const contentType = request.headers.get('content-type') ?? ''
   try {
+    await ensurePublishAccessForAction(ctx, userId, user)
     if (contentType.includes('application/json')) {
       const body = await request.json()
       const payload = parsePublishBody(body)
@@ -886,6 +891,7 @@ export async function publishSkillV1Handler(ctx: ActionCtx, request: Request) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Publish failed'
+    if (isPublishAccessDeniedMessage(message)) return text(message, 403, rate.headers)
     return text(message, 400, rate.headers)
   }
 

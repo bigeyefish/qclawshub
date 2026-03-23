@@ -5,6 +5,10 @@ import { corsHeaders, mergeHeaders } from '../lib/httpHeaders'
 import { buildDeterministicZip } from '../lib/skillZip'
 import { requireApiTokenUser } from '../lib/apiTokenAuth'
 import { applyRateLimit, parseBearerToken } from '../lib/httpRateLimit'
+import {
+  ensurePublishAccessForAction,
+  isPublishAccessDeniedMessage,
+} from '../lib/publishAccess'
 import { publishSoulVersionForUser } from '../souls'
 import {
   MAX_RAW_FILE_BYTES,
@@ -361,10 +365,11 @@ export async function publishSoulV1Handler(ctx: ActionCtx, request: Request) {
   } catch {
     return text('Unauthorized', 401, rate.headers)
   }
-  const { userId } = await requireApiTokenUser(ctx, request)
+  const { userId, user } = await requireApiTokenUser(ctx, request)
 
   const contentType = request.headers.get('content-type') ?? ''
   try {
+    await ensurePublishAccessForAction(ctx, userId, user)
     if (contentType.includes('application/json')) {
       const body = await request.json()
       const payload = parsePublishBody(body)
@@ -379,6 +384,7 @@ export async function publishSoulV1Handler(ctx: ActionCtx, request: Request) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Publish failed'
+    if (isPublishAccessDeniedMessage(message)) return text(message, 403, rate.headers)
     return text(message, 400, rate.headers)
   }
 

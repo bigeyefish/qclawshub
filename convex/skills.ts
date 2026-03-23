@@ -20,6 +20,7 @@ import {
   requireUser,
   requireUserFromAction,
 } from './lib/access'
+import { ensurePublishAccessForAction } from './lib/publishAccess'
 import {
   getSkillBadgeMap,
   getSkillBadgeMaps,
@@ -4383,7 +4384,8 @@ export const publishVersion: ReturnType<typeof action> = action({
         'MIT-0 license terms must be accepted to publish skills',
       )
     }
-    const { userId } = await requireUserFromAction(ctx)
+    const { userId, user } = await requireUserFromAction(ctx)
+    await ensurePublishAccessForAction(ctx, userId, user)
     return publishVersionForUser(ctx, userId, args)
   },
 })

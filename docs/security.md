@@ -108,6 +108,17 @@ read_when:
 - To reduce rate-limit failures, set `GITHUB_TOKEN` in Convex env for authenticated
   GitHub API requests.
 
+## Temporary publish allowlist
+
+- Set `PUBLISH_ALLOWLIST` to restrict upload/import/publish to approved accounts only.
+- The allowlist is optional; when unset or empty, publish behavior stays open.
+- Entries can be separated by commas, spaces, or newlines.
+- Supported identifiers:
+  - Convex user id: `users:abc123`
+  - GitHub login / handle: `alice` or `login:alice`
+  - GitHub numeric provider id: `github:123456`
+- The gate applies to web uploads, GitHub import previews/imports, and CLI/API publish flows.
+
 ## Empty-skill cleanup (backfill)
 
 - Cleanup uses quality heuristics plus trust tier to identify very thin/templated

@@ -6,6 +6,7 @@ import type { Id } from './_generated/dataModel'
 import type { ActionCtx } from './_generated/server'
 import { action } from './functions'
 import { requireUserFromAction } from './lib/access'
+import { ensurePublishAccessForAction } from './lib/publishAccess'
 import {
   buildGitHubImportFileList,
   computeDefaultSelectedPaths,
@@ -30,7 +31,8 @@ const MAX_SINGLE_FILE_BYTES = 10 * 1024 * 1024
 export const previewGitHubImport = action({
   args: { url: v.string() },
   handler: async (ctx, args) => {
-    await requireUserFromAction(ctx)
+    const { userId, user } = await requireUserFromAction(ctx)
+    await ensurePublishAccessForAction(ctx, userId, user)
 
     const parsed = parseGitHubImportUrl(args.url)
     const resolved = await resolveGitHubCommit(parsed, fetch)
@@ -57,7 +59,8 @@ export const previewGitHubImport = action({
 export const previewGitHubImportCandidate = action({
   args: { url: v.string(), candidatePath: v.string() },
   handler: async (ctx, args) => {
-    const { userId } = await requireUserFromAction(ctx)
+    const { userId, user } = await requireUserFromAction(ctx)
+    await ensurePublishAccessForAction(ctx, userId, user)
 
     const parsed = parseGitHubImportUrl(args.url)
     const resolved = await resolveGitHubCommit(parsed, fetch)
@@ -130,7 +133,8 @@ export const importGitHubSkill = action({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireUserFromAction(ctx)
+    const { userId, user } = await requireUserFromAction(ctx)
+    await ensurePublishAccessForAction(ctx, userId, user)
 
     const parsed = parseGitHubImportUrl(args.url)
     const resolved = await resolveGitHubCommit(parsed, fetch)
