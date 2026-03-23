@@ -83,6 +83,17 @@ type PublicSoulVersion = Pick<
 
 type SoulFile = PublicSoulVersion['files'][number]
 
+async function recordSoulDownloadBestEffort(
+  ctx: ActionCtx,
+  soulId: Id<'souls'>,
+) {
+  try {
+    await ctx.runMutation(internal.soulDownloads.incrementInternal, { soulId })
+  } catch {
+    // Best-effort metric path; do not fail soul downloads.
+  }
+}
+
 export async function listSoulsV1Handler(ctx: ActionCtx, request: Request) {
   const rate = await applyRateLimit(ctx, request, 'read')
   if (!rate.ok) return rate.response
@@ -266,7 +277,7 @@ export async function soulsGetRouterV1Handler(ctx: ActionCtx, request: Request) 
     if (!blob) return text('File missing in storage', 410, rate.headers)
     const textContent = await blob.text()
 
-    void ctx.runMutation(internal.soulDownloads.incrementInternal, { soulId: soul._id })
+    await recordSoulDownloadBestEffort(ctx, soul._id)
     return safeTextFileResponse({
       textContent,
       path: file.path,
@@ -322,7 +333,7 @@ export async function soulsGetRouterV1Handler(ctx: ActionCtx, request: Request) 
       publishedAt: version.createdAt,
     })
 
-    void ctx.runMutation(internal.soulDownloads.incrementInternal, { soulId: soul._id })
+    await recordSoulDownloadBestEffort(ctx, soul._id)
 
     return new Response(new Blob([zipArray], { type: 'application/zip' }), {
       status: 200,
