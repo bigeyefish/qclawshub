@@ -68,6 +68,7 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
   const [selectedFileError, setSelectedFileError] = useState<string | null>(null)
   const [isLoadingSelectedFile, setIsLoadingSelectedFile] = useState(false)
   const [comment, setComment] = useState('')
+  const [isTogglingStar, setIsTogglingStar] = useState(false)
 
   const isLoadingSoul = result === undefined
   const soul = result?.soul
@@ -212,6 +213,19 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
       })
   }
 
+  async function handleToggleStar() {
+    if (!soul || isTogglingStar) return
+    setIsTogglingStar(true)
+    try {
+      await toggleStar({ soulId: soul._id })
+    } catch (error) {
+      console.error('Failed to toggle soul star', error)
+      window.alert('Unable to update the star right now. Please try again.')
+    } finally {
+      setIsTogglingStar(false)
+    }
+  }
+
   return (
     <main className="section">
       <div className="skill-detail-stack">
@@ -235,7 +249,9 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
                   <button
                     className={`star-toggle${isStarred ? ' is-active' : ''}`}
                     type="button"
-                    onClick={() => void toggleStar({ soulId: soul._id })}
+                    onClick={() => void handleToggleStar()}
+                    disabled={isTogglingStar}
+                    aria-busy={isTogglingStar}
                     aria-label={isStarred ? 'Unstar soul' : 'Star soul'}
                   >
                     <span aria-hidden="true">★</span>

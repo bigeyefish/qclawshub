@@ -47,6 +47,7 @@ type SkillHeaderProps = {
   isAuthenticated: boolean
   isStaff: boolean
   isStarred: boolean | undefined
+  isTogglingStar: boolean
   onToggleStar: () => void
   onOpenReport: () => void
   forkOf: SkillFork | null
@@ -86,6 +87,7 @@ export function SkillHeader({
   isAuthenticated,
   isStaff,
   isStarred,
+  isTogglingStar,
   onToggleStar,
   onOpenReport,
   forkOf,
@@ -252,6 +254,8 @@ export function SkillHeader({
                     className={`star-toggle${isStarred ? ' is-active' : ''}`}
                     type="button"
                     onClick={onToggleStar}
+                    disabled={isTogglingStar}
+                    aria-busy={isTogglingStar}
                     aria-label={isStarred ? 'Unstar skill' : 'Star skill'}
                   >
                     <span aria-hidden="true">★</span>
